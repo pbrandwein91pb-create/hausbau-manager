@@ -1464,6 +1464,7 @@ document.getElementById('cloudCreateProjectBtn').addEventListener('click', async
   }
 
   const userId = userData.user.id;
+  cloudStatus('Diagnose: Benutzer-ID aus Sitzung = ' + userId);
   const name =
     document.getElementById('cloudNewProjectName').value.trim()
     || 'Mein Hausbau';
