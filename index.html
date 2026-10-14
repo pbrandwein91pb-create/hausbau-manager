@@ -1446,7 +1446,53 @@ document.getElementById('cloudSignupBtn').addEventListener('click',()=>cloudAuth
 document.getElementById('cloudRefreshProjectsBtn').addEventListener('click',()=>cloudRefreshProjects());
 document.getElementById('cloudOpenProjectBtn').addEventListener('click',()=>cloudOpenProject(document.getElementById('cloudProjectSelect').value));
 document.getElementById('cloudContinueBtn').addEventListener('click',()=>{if(activeProjectId){cloudSetAppVisible(true);}});
-document.getElementById('cloudCreateProjectBtn').addEventListener('click',async()=>{if(!supabaseClient||!cloudUser)return;const name=document.getElementById('cloudNewProjectName').value.trim()||'Mein Hausbau';cloudStatus('Leeres Bauprojekt wird angelegt …');const {data,error}=await supabaseClient.from('projects').insert({name,owner_id:cloudUser.id,data:cloudEmptyData()}).select('id').single();if(error){cloudStatus('Projekt konnte nicht angelegt werden: '+error.message,true);return;}document.getElementById('cloudNewProjectName').value='';await cloudRefreshProjects(data.id);await cloudOpenProject(data.id);});
+
+document.getElementById('cloudCreateProjectBtn').addEventListener('click', async () => {
+  if (!supabaseClient) {
+    cloudStatus('Cloud-Verbindung fehlt. Bitte neu anmelden.', true);
+    return;
+  }
+
+  cloudStatus('Anmeldung wird geprüft …');
+
+  const { data: userData, error: userError } =
+    await supabaseClient.auth.getUser();
+
+  if (userError || !userData.user) {
+    cloudStatus('Keine gültige Anmeldung. Bitte abmelden und neu anmelden.', true);
+    return;
+  }
+
+  const userId = userData.user.id;
+  const name =
+    document.getElementById('cloudNewProjectName').value.trim()
+    || 'Mein Hausbau';
+
+  cloudStatus('Leeres Bauprojekt wird angelegt …');
+
+  const { data, error } = await supabaseClient
+    .from('projects')
+    .insert({
+      name: name,
+      owner_id: userId,
+      data: cloudEmptyData()
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    cloudStatus(
+      'Projekt konnte nicht angelegt werden: ' + error.message,
+      true
+    );
+    return;
+  }
+
+  document.getElementById('cloudNewProjectName').value = '';
+  await cloudRefreshProjects(data.id);
+  await cloudOpenProject(data.id);
+});
+
 document.getElementById('cloudInviteBtn').addEventListener('click',async()=>{if(!activeProjectId){cloudStatus('Öffne zuerst ein Bauprojekt.',true);return;}const email=document.getElementById('cloudInviteEmail').value.trim();if(!email){cloudStatus('Bitte die E-Mail-Adresse des Partners eingeben.',true);return;}cloudStatus('Einladung wird verarbeitet …');const {error}=await supabaseClient.rpc('invite_project_member',{p_project_id:activeProjectId,p_email:email});if(error){cloudStatus('Einladung fehlgeschlagen: '+error.message,true);return;}document.getElementById('cloudInviteEmail').value='';cloudStatus('Partner wurde hinzugefügt. Er kann sich jetzt anmelden und das gemeinsame Projekt öffnen.');await cloudRefreshProjects(activeProjectId);});
 document.getElementById('cloudLogoutBtn').addEventListener('click',async()=>{if(supabaseClient)await supabaseClient.auth.signOut();});
 if(window.HM_SUPABASE_URL&&window.HM_SUPABASE_ANON_KEY&&!String(window.HM_SUPABASE_URL).includes('DEINE-PROJEKT-URL'))cloudInitialize();else{cloudSetAppVisible(false);cloudConfigCheck();}
