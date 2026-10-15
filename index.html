@@ -1444,7 +1444,67 @@ async function cloudInitialize(){if(!cloudConfigCheck()){cloudSetAppVisible(fals
 document.getElementById('cloudLoginBtn').addEventListener('click',()=>cloudAuthAction('login'));
 document.getElementById('cloudSignupBtn').addEventListener('click',()=>cloudAuthAction('signup'));
 document.getElementById('cloudRefreshProjectsBtn').addEventListener('click',()=>cloudRefreshProjects());
-document.getElementById('cloudOpenProjectBtn').addEventListener('click',()=>cloudOpenProject(document.getElementById('cloudProjectSelect').value));
+
+document.getElementById('cloudCreateProjectBtn').addEventListener('click', async () => {
+  if (!supabaseClient) {
+    cloudStatus('DIAGNOSE: Supabase-Client fehlt.', true);
+    return;
+  }
+
+  const { data: sessionData, error: sessionError } =
+    await supabaseClient.auth.getSession();
+
+  const { data: userData, error: userError } =
+    await supabaseClient.auth.getUser();
+
+  if (sessionError || userError || !sessionData.session || !userData.user) {
+    cloudStatus(
+      'DIAGNOSE: Sitzung fehlt oder ist ungültig. Bitte neu anmelden. ' +
+      (sessionError?.message || userError?.message || ''),
+      true
+    );
+    return;
+  }
+
+  const sessionId = sessionData.session.user.id;
+  const userId = userData.user.id;
+
+  if (sessionId !== userId) {
+    cloudStatus('DIAGNOSE: Sitzungs-ID und Benutzer-ID unterscheiden sich.', true);
+    return;
+  }
+
+  const name =
+    document.getElementById('cloudNewProjectName').value.trim()
+    || 'Mein Hausbau';
+
+  cloudStatus('DIAGNOSE: Anmeldung gültig. Prüfe Projektberechtigung …');
+
+  const { data, error } = await supabaseClient
+    .from('projects')
+    .insert({
+      name: name,
+      owner_id: userId,
+      data: cloudEmptyData()
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    cloudStatus(
+      'DIAGNOSE: Anmeldung gültig, Projekt abgelehnt. ' +
+      'Code: ' + (error.code || 'unbekannt') +
+      ' – ' + error.message,
+      true
+    );
+    return;
+  }
+
+  document.getElementById('cloudNewProjectName').value = '';
+  await cloudRefreshProjects(data.id);
+  await cloudOpenProject(data.id);
+});
+
 document.getElementById('cloudContinueBtn').addEventListener('click',()=>{if(activeProjectId){cloudSetAppVisible(true);}});
 
 document.getElementById('cloudCreateProjectBtn').addEventListener('click', async () => {
